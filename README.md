@@ -1,1 +1,1 @@
-# DA23_essay-auto-scoring-model
+# DA23_essay-auto-scoring-modelCompetition link: https://www.kaggle.com/competitions/learning-agency-lab-automated-essay-scoring-2/data
