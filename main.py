@@ -30,7 +30,7 @@ from transformers import (
     )
 from datasets import Dataset
 
-
+import torch
 
 df = pd.read_csv('data/train.csv')
 
@@ -225,40 +225,43 @@ df = df.apply(describe_text, axis=1)
 
 #%% SCORING BY FINE-TUNING BERT
 
-# Load tokenizer
+# 1. Load tokenizer
 tokenizer_bert = BertTokenizer.from_pretrained('bert-base-uncased')
 
-# Convert the dataset
+# 2. Convert the dataset
 dataset = Dataset.from_pandas(df[['full_text', 'score']])
 dataset = dataset.rename_column('score', 'label')
 
-# Tokenize
+# 3. Tokenizzation function
 def tokenizer_func(df):
     return tokenizer_bert(
-        df['full_text'], truncation=True, padding='max_length', max_length=512
+        df['full_text'],  # Tokenize each essay
+        truncation=True,  
+        max_length=512,  # Truncate it to a maximum length of 512 tokens
+        padding='max_length'  # all samples are the same length
         )
 
 tokenized_dataset = dataset.map(tokenizer_func, batch_size=True)
 
-# Train - test split
+# 4. Train - test split
 tokenized_dataset = tokenized_dataset.train_test_split(test_size=0.2)
 train_dataset = tokenized_dataset['train']
 eval_dataset = tokenized_dataset['test']
 
-# Load model
+# 5. Load BERT with a classification head
 model = BertForSequenceClassification.from_pretrained(
     'bert-base-uncased', num_labels=6
     )  # scores 1–6
 
 
-# Training setup
+# 6. Training setup
 training_args = TrainingArguments(
-    output_dir="./bert-essay",
-    evaluation_strategy="epoch",
+    output_dir="./bert-essay",  # save checkpoint
+    evaluation_strategy="epoch",  # evaluate dataset after each epoch
     learning_rate=2e-5,
     per_device_train_batch_size=8,
     num_train_epochs=3,
-    weight_decay=0.01,
+    weight_decay=0.01,  # regularize model
 )
 
 trainer = Trainer(
@@ -268,16 +271,15 @@ trainer = Trainer(
     eval_dataset=eval_dataset,  # split your data for real use
 )
 
-# Step 5: Train
+# 7.Train
 trainer.train()
 
-# Step 6: Predict
+# 8. Predict
 preds = trainer.predict(eval_dataset)
 pred_labels = np.argmax(preds.predictions, axis=1)
 true_labels = eval_dataset['label']
 
 print(f"Accuracy of BERT: {accuracy_score(true_labels, pred_labels):.2f}")
-
 
 
 
