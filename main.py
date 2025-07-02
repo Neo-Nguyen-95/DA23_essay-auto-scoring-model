@@ -22,7 +22,7 @@ from sklearn.metrics import accuracy_score, classification_report
 from sklearn.model_selection import train_test_split
 from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer
 from sklearn.naive_bayes import MultinomialNB
-from sklearn.linear_model import LogisticRegression, Ridge
+from sklearn.linear_model import LogisticRegression, Ridge, LinearRegression
 from sklearn.svm import LinearSVC
 
 from transformers import (
@@ -36,63 +36,65 @@ df = pd.read_csv('data/train.csv')
 
 #%% EDA 1
 
-# df.head()
+df.head()
 
-# df.info()
+df.info()
 
-# fig, axes = plt.subplots(ncols=2, nrows=1, figsize=(9, 4))
-
-# axes[0].bar(
-#     df['score'].value_counts().sort_index().index,
-#     df['score'].value_counts().sort_index()
-#     )
-# axes[0].set_title('Distribution of scores')
-# axes[0].set_xlabel('Score')
-# axes[0].set_ylabel('Count')
-
-# axes[1].pie(
-#     df['score'].value_counts(normalize=True).sort_index(),
-#     labels=df['score'].value_counts(normalize=True).sort_index().index,
-#     autopct='%1.1f%%'
-#     )
-# axes[1].set_title('Percentage of scores')
-
-# plt.show()
-
+def plot_hist_pie(df):
+    fig, axes = plt.subplots(ncols=2, nrows=1, figsize=(9, 4))
+    
+    axes[0].bar(
+        df['score'].value_counts().sort_index().index,
+        df['score'].value_counts().sort_index()
+        )
+    axes[0].set_title('Distribution of scores')
+    axes[0].set_xlabel('Score')
+    axes[0].set_ylabel('Count')
+    
+    axes[1].pie(
+        df['score'].value_counts(normalize=True).sort_index(),
+        labels=df['score'].value_counts(normalize=True).sort_index().index,
+        autopct='%1.1f%%'
+        )
+    axes[1].set_title('Percentage of scores')
+    
+    plt.show()
+    
+plot_hist_pie(df)
 
 
 #%% PREPROCESSING 1
 
-# text = df.at[0, 'full_text']
+text = df.at[0, 'full_text']
 
-# ### Normalization
-# # Converting text to a standard form, e.g. lowercasing, removing punctuation, expanding contractions
-# text = re.sub(r'[\.\?\!\,\:\;\"\'\xa0\$\d+]', ' ', text)
-# text = text.lower()
+### Normalization
+# Converting text to a standard form, e.g. lowercasing, removing punctuation, expanding contractions
+text = re.sub(r'[\.\?\!\,\:\;\"\'\xa0\$\d+]', ' ', text)
+text = text.lower()
 
-# ### Tokenization -> nltk lib
-# # splitting text into words or subwords
-# tokenized_text = word_tokenize(text)
-# count_text = len(tokenized_text)
+### Tokenization -> nltk lib
+# splitting text into words or subwords
+tokenized_text = word_tokenize(text)
+count_text = len(tokenized_text)
 
-# ### Stopword count
-# stop_words = set(stopwords.words('english'))
-# stopwords_text = [word for word in tokenized_text if word in stop_words]
-# count_stopwords_text = len(stopwords_text)
+### Stopword count
+stop_words = set(stopwords.words('english'))
+stopwords_text = [word for word in tokenized_text if word in stop_words]
+count_stopwords_text = len(stopwords_text)
 
 
-# ### Stemming/lemmatization
-# lemmatizer = WordNetLemmatizer()
-# lemmatized_text = [lemmatizer.lemmatize(token) for token in tokenized_text]
+### Stemming/lemmatization
+lemmatizer = WordNetLemmatizer()
+lemmatized_text = [lemmatizer.lemmatize(token) for token in tokenized_text]
 
-# ### Count words
-# Counter(lemmatized_text).most_common(10)
+### Count words
+Counter(lemmatized_text).most_common(10)
 
-# ### Typo count
-# spell = SpellChecker()
-# misspelled = spell.unknown(lemmatized_text)
-# corrected_spell = [spell.correction(word) for word in misspelled]  # Undetected word might be object/location name, I can filter it if SpellChecker cannot detect it.
-# count_misspelled = len([word for word in corrected_spell if word])
+### Typo count
+spell = SpellChecker()
+misspelled = spell.unknown(lemmatized_text)
+corrected_spell = [spell.correction(word) for word in misspelled]  # Undetected word might be object/location name, I can filter it if SpellChecker cannot detect it.
+count_misspelled = len([word for word in corrected_spell if word])
 
 ### Stop-word removal are not applied in this case-study
 
@@ -145,141 +147,177 @@ def describe_text(row):
 
 df = df.apply(describe_text, axis=1)
 
-# # Average table
-# df.groupby('score')[['text_length', 'stopword_percent', 'misspelled_percent']].mean()
+# Average table
+df.groupby('score')[['text_length', 'stopword_percent', 'misspelled_percent']].mean()
 
-# # Text length plot
-# sns.violinplot(
-#     data=df,
-#     x='text_length',
-#     y='score',
-#     orient='h',
-#     split=True
-#     )
-# plt.title('Text\'s length distribution corresponding to score')
-# plt.xlim(0, 1400)
-# plt.show()
+# Text length plot
+sns.violinplot(
+    data=df,
+    x='text_length',
+    y='score',
+    orient='h',
+    split=True
+    )
+plt.title('Text\'s length distribution corresponding to score')
+plt.xlim(0, 1400)
+plt.show()
 
-# # Stopword percentage plot
-# sns.violinplot(
-#     data=df,
-#     x='stopword_percent',
-#     y='score',
-#     orient='h',
-#     split=True
-#     )
-# plt.title('Distribution of percentage of stop words corresponding to score')
-# plt.show()
+# Stopword percentage plot
+sns.violinplot(
+    data=df,
+    x='stopword_percent',
+    y='score',
+    orient='h',
+    split=True
+    )
+plt.title('Distribution of percentage of stop words corresponding to score')
+plt.show()
 
-# # Misspelled percentage plot
-# sns.violinplot(
-#     data=df,
-#     x='misspelled_percent',
-#     y='score',
-#     orient='h',
-#     split=True
-#     )
-# plt.title('Distribution of percentage of misspelled words  corresponding to score')
-# plt.xlim(0, 0.1)
-# plt.show()
+# Misspelled percentage plot
+sns.violinplot(
+    data=df,
+    x='misspelled_percent',
+    y='score',
+    orient='h',
+    split=True
+    )
+plt.title('Distribution of percentage of misspelled words  corresponding to score')
+plt.xlim(0, 0.1)
+plt.show()
 
 #%% SCORING BY TEXT CLASSIFICATION
-# # Classification with Naive Bayes, Logistic Regression, SVM
+# Classification with Naive Bayes, Logistic Regression, SVM
 
-# ### Multinomial NB
-# texts = [' '.join(words) for words in df['word_collection'].to_list()]
-# labels = df['score'].to_list()
+### Multinomial NB
+texts = [' '.join(words) for words in df['word_collection'].to_list()]
+labels = df['score'].to_list()
 
-# X_train, X_val, y_train, y_val = train_test_split(
-#     texts, labels, test_size=0.2, random_state=42, stratify=labels
-#     )
+X_train, X_val, y_train, y_val = train_test_split(
+    texts, labels, test_size=0.2, random_state=42, stratify=labels
+    )
 
-# model_NB = make_pipeline(TfidfVectorizer(), MultinomialNB())
-# model_NB.fit(X_train, y_train)
-# prediction = model_NB.predict(X_val)
-# print(f'Accuracy of Naive Bayes Classifier: {accuracy_score(y_val, prediction):.2f}')
-
-
-# model_LR = make_pipeline(
-#     TfidfVectorizer(), LogisticRegression(max_iter=500)
-#     )
-# model_LR.fit(X_train, y_train)
-# prediction = model_LR.predict(X_val)
-# print(f'Accuracy of Logistic Regression: {accuracy_score(y_val, prediction):.2f}')
-
-# model_SVM = make_pipeline(TfidfVectorizer(), LinearSVC())
-# model_SVM.fit(X_train, y_train)
-# prediction = model_SVM.predict(X_val)
-# print(f'Accuracy of SVM: {accuracy_score(y_val, prediction):.2f}')
+model_NB = make_pipeline(TfidfVectorizer(), MultinomialNB())
+model_NB.fit(X_train, y_train)
+prediction_NB = model_NB.predict(X_val)
+print(f'Accuracy of Naive Bayes Classifier: {accuracy_score(y_val, prediction_NB):.2f}')
 
 
-# X_train, X_val, y_train, y_val = train_test_split(
-#     df[['text_length', 'misspelled_percent']], df['score'], test_size=0.2, random_state=42, stratify=labels
-#     )
+model_LR = make_pipeline(
+    TfidfVectorizer(), LogisticRegression(max_iter=500)
+    )
+model_LR.fit(X_train, y_train)
+prediction_LR = model_LR.predict(X_val)
+print(f'Accuracy of Logistic Regression: {accuracy_score(y_val, prediction_LR):.2f}')
 
-# model_ridge = Ridge(alpha=1)
-# model_ridge.fit(X_train, y_train)
-# y_pred = model_ridge.predict(X_val)
-# y_pred_rounded = [int(round(y, 0)) for y in y_pred]
-# print(f'Accuracy of Ridge: {accuracy_score(y_val, y_pred_rounded):.2f}')
+model_SVM = make_pipeline(TfidfVectorizer(), LinearSVC())
+model_SVM.fit(X_train, y_train)
+prediction_SVM = model_SVM.predict(X_val)
+print(f'Accuracy of SVM: {accuracy_score(y_val, prediction_SVM):.2f}')
+
+
+X_train2, X_val2, y_train2, y_val2 = train_test_split(
+    df[['text_length', 'misspelled_percent']], df['score'], test_size=0.2, random_state=42, stratify=labels
+    )
+
+model_linear = LinearRegression()
+model_linear.fit(X_train2, y_train2)
+prediction_linear = model_linear.predict(X_val2)
+prediction_linear_rounded = [int(round(y, 0)) for y in prediction_linear]
+print(f'Accuracy of Linear Regression: {accuracy_score(y_val2, prediction_linear_rounded):.2f}')
+
+### Plot
+fig, axes = plt.subplots(
+    nrows=2, ncols=2, sharex=True, sharey=True
+    )
+fig.subplots_adjust(hspace=0.25, wspace=0.1)
+
+sns.histplot(
+    data=(pd.Series(prediction_NB) - pd.Series(y_val)),
+    ax=axes[0, 0],
+    bins=7,
+    )
+axes[0, 0].set_title('Score difference in NB')
+
+sns.histplot(
+    data=(pd.Series(prediction_LR) - pd.Series(y_val)),
+    ax=axes[0, 1],
+    bins=7
+    )
+axes[0, 1].set_title('Score difference in LR')
+
+sns.histplot(
+    data=(pd.Series(prediction_SVM) - pd.Series(y_val)),
+    ax=axes[1, 0],
+    bins=7
+    )
+axes[1, 0].set_title('Score difference in SVM')
+
+sns.histplot(
+    data=(pd.Series(prediction_linear_rounded) - pd.Series(y_val2.values)),
+    ax=axes[1, 1],
+    bins=7
+    )
+axes[1, 1].set_title('Score difference in Ridge')
+
+plt.show()
 
 #%% SCORING BY FINE-TUNING BERT
 
-# 1. Load tokenizer
-tokenizer_bert = BertTokenizer.from_pretrained('bert-base-uncased')
+# # 1. Load tokenizer
+# tokenizer_bert = BertTokenizer.from_pretrained('bert-base-uncased')
 
-# 2. Convert the dataset
-dataset = Dataset.from_pandas(df[['full_text', 'score']])
-dataset = dataset.rename_column('score', 'label')
+# # 2. Convert the dataset
+# dataset = Dataset.from_pandas(df[['full_text', 'score']])
+# dataset = dataset.rename_column('score', 'label')
 
-# 3. Tokenizzation function
-def tokenizer_func(df):
-    return tokenizer_bert(
-        df['full_text'],  # Tokenize each essay
-        truncation=True,  
-        max_length=512,  # Truncate it to a maximum length of 512 tokens
-        padding='max_length'  # all samples are the same length
-        )
+# # 3. Tokenizzation function
+# def tokenizer_func(df):
+#     return tokenizer_bert(
+#         df['full_text'],  # Tokenize each essay
+#         truncation=True,  
+#         max_length=512,  # Truncate it to a maximum length of 512 tokens
+#         padding='max_length'  # all samples are the same length
+#         )
 
-tokenized_dataset = dataset.map(tokenizer_func, batch_size=True)
+# tokenized_dataset = dataset.map(tokenizer_func, batch_size=True)
 
-# 4. Train - test split
-tokenized_dataset = tokenized_dataset.train_test_split(test_size=0.2)
-train_dataset = tokenized_dataset['train']
-eval_dataset = tokenized_dataset['test']
+# # 4. Train - test split
+# tokenized_dataset = tokenized_dataset.train_test_split(test_size=0.2)
+# train_dataset = tokenized_dataset['train']
+# eval_dataset = tokenized_dataset['test']
 
-# 5. Load BERT with a classification head
-model = BertForSequenceClassification.from_pretrained(
-    'bert-base-uncased', num_labels=6
-    )  # scores 1–6
+# # 5. Load BERT with a classification head
+# model = BertForSequenceClassification.from_pretrained(
+#     'bert-base-uncased', num_labels=6
+#     )  # scores 1–6
 
 
-# 6. Training setup
-training_args = TrainingArguments(
-    output_dir="./bert-essay",  # save checkpoint
-    evaluation_strategy="epoch",  # evaluate dataset after each epoch
-    learning_rate=2e-5,
-    per_device_train_batch_size=8,
-    num_train_epochs=3,
-    weight_decay=0.01,  # regularize model
-)
+# # 6. Training setup
+# training_args = TrainingArguments(
+#     output_dir="./bert-essay",  # save checkpoint
+#     evaluation_strategy="epoch",  # evaluate dataset after each epoch
+#     learning_rate=2e-5,
+#     per_device_train_batch_size=8,
+#     num_train_epochs=3,
+#     weight_decay=0.01,  # regularize model
+# )
 
-trainer = Trainer(
-    model=model,
-    args=training_args,
-    train_dataset=train_dataset,
-    eval_dataset=eval_dataset,  # split your data for real use
-)
+# trainer = Trainer(
+#     model=model,
+#     args=training_args,
+#     train_dataset=train_dataset,
+#     eval_dataset=eval_dataset,  # split your data for real use
+# )
 
-# 7.Train
-trainer.train()
+# # 7.Train
+# trainer.train()
 
-# 8. Predict
-preds = trainer.predict(eval_dataset)
-pred_labels = np.argmax(preds.predictions, axis=1)
-true_labels = eval_dataset['label']
+# # 8. Predict
+# preds = trainer.predict(eval_dataset)
+# pred_labels = np.argmax(preds.predictions, axis=1)
+# true_labels = eval_dataset['label']
 
-print(f"Accuracy of BERT: {accuracy_score(true_labels, pred_labels):.2f}")
+# print(f"Accuracy of BERT: {accuracy_score(true_labels, pred_labels):.2f}")
 
 
 
